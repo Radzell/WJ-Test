@@ -56,6 +56,10 @@
   font-size: 1.5rem;
 }
 
+.employeeRow{
+  font-size: 1rem;
+}
+
 .code {
   background: #fafafa;
   border-radius: 5px;

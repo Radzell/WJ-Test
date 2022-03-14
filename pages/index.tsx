@@ -1,9 +1,76 @@
-import type { NextPage } from 'next'
-import Head from 'next/head'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
+import type { InferGetStaticPropsType, NextPage } from "next";
+import Head from "next/head";
+import styles from "../styles/Home.module.css";
 
-const Home: NextPage = () => {
+const ROOT_LEVEL = -1;
+
+type Employee = {
+  name: string;
+  id: number;
+  title: string;
+  manager_id?: number;
+};
+
+interface Props {
+  employeeOrgMap: Record<number, Employee[]>;
+}
+
+export async function getServerSideProps() {
+  // Fetch data from external API
+  const res = await fetch(
+    `https://gist.githubusercontent.com/chancock09/6d2a5a4436dcd488b8287f3e3e4fc73d/raw/fa47d64c6d5fc860fabd3033a1a4e3c59336324e/employees.json`
+  );
+  const employeeData: Employee[] = await res.json();
+
+  const employeeOrgMap = employeeData.reduce((prev, curr) => {
+    if (!curr.manager_id) {
+      curr.manager_id = ROOT_LEVEL;
+    }
+    if (!prev[curr.manager_id]) {
+      prev[curr.manager_id] = [];
+    }
+    prev[curr.manager_id].push(curr);
+
+    return prev;
+  }, {} as Record<number, Employee[]>);
+
+  // Pass data to the page via props
+  return { props: { employeeOrgMap } };
+}
+
+const Home: NextPage<Props> = ({ employeeOrgMap }) => {
+  const renderOrgChart = (level: number) => {
+    const employees = employeeOrgMap[level];
+
+    if (!employees) {
+      return;
+    }
+
+    return employees
+      .sort((a, b) => {
+        const aLastName = a.name.split(" ")[1];
+        const bLastName = b.name.split(" ")[1];
+        if (!aLastName) {
+          return 1;
+        }
+
+        if (!bLastName) {
+          return -1;
+        }
+        return aLastName.localeCompare(bLastName);
+      })
+      .map((employee) => {
+        return (
+          <ol>
+            <ol className={styles.employeeRow}>
+              {employee.title}: {employee.name}
+            </ol>
+            {renderOrgChart(employee.id)}
+          </ol>
+        );
+      });
+  };
+  
   return (
     <div className={styles.container}>
       <Head>
@@ -14,59 +81,14 @@ const Home: NextPage = () => {
 
       <main className={styles.main}>
         <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
+          Welcome to <a href="https://www.wanderjaunt.com/">WanderJaunt</a>
         </h1>
+        <h2>Employees</h2>
 
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.tsx</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h2>Documentation &rarr;</h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h2>Learn &rarr;</h2>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-            className={styles.card}
-          >
-            <h2>Examples &rarr;</h2>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h2>Deploy &rarr;</h2>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
+        {renderOrgChart(ROOT_LEVEL)}
       </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <span className={styles.logo}>
-            <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-          </span>
-        </a>
-      </footer>
     </div>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;
